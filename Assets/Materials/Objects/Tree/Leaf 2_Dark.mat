@@ -44,7 +44,7 @@ Material:
     m_Floats:
     - _AlphaCutoff: 0.4
     - _QueueControl: 0
-    - _WindSpeed: 0.45
+    - _WindSpeed: 1
     - _WindStrength: 0.1
     m_Colors:
     - _Color: {r: 0.28097555, g: 0.6226415, b: 0.19149159, a: 1}
