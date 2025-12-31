@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "com.ultraleap.tracking": "7.2.0",
+    "com.unity.cinemachine": "2.10.5",
     "com.unity.collab-proxy": "2.10.2",
     "com.unity.feature.development": "1.0.1",
     "com.unity.postprocessing": "3.4.0",
