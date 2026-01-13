@@ -110,8 +110,8 @@ Material:
     - _EnvironmentReflections: 1
     - _FoamAmount: 1
     - _FoamCutOut: 2.47
-    - _FoamScale: 2.56
-    - _FoamSpeed: 0.015
+    - _FoamScale: 13.48
+    - _FoamSpeed: 0.09
     - _GlossMapScale: 0
     - _Glossiness: 0
     - _GlossyReflections: 0
