@@ -249,6 +249,14 @@ MonoBehaviour:
   maxScale: 1
   zoomSmooth: 16
   pinchPositionIsProviderLocal: 1
+  autoOrbit: 1
+  orbitPivot: {fileID: 24019300}
+  orbitDegreesPerSecond: 10
+  orbitPitch: 30
+  orbitDistance: 6
+  orbitLookAtHeight: 0
+  orbitSmooth: 10
+  resumeAfterSeconds: 1
 --- !u!1001 &109797808
 PrefabInstance:
   m_ObjectHideFlags: 0

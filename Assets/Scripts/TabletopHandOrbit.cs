@@ -25,6 +25,22 @@ public class TabletopBoardControls : MonoBehaviour
     [Header("Coordinate toggle (try if it feels wrong)")]
     public bool pinchPositionIsProviderLocal = true;
 
+    // -------------------------------
+    // EXHIBITION / AUTO ORBIT CAMERA
+    // -------------------------------
+    [Header("Exhibition (auto camera orbit)")]
+    public bool autoOrbit = false;
+    public Transform orbitPivot;                 // If null, defaults to this transform
+    public float orbitDegreesPerSecond = 10f;    // How fast the camera orbits
+    public float orbitPitch = 20f;               // Tilt downward (degrees)
+    public float orbitDistance = 0f;             // 0 = use current distance on enable
+    public float orbitLookAtHeight = 0.0f;       // Look-at offset above pivot
+    public float orbitSmooth = 10f;              // Higher = snappier camera motion
+    public float resumeAfterSeconds = 1.0f;      // Wait after interaction before resuming orbit
+
+    private float orbitYaw;                      // current orbit angle around Y
+    private float lastInteractTime = -999f;
+
     // Interaction state
     private bool onePinch;
     private int oneHandId;
@@ -62,6 +78,11 @@ public class TabletopBoardControls : MonoBehaviour
         Vector3 e = homeRot.eulerAngles;
         targetYaw = e.y;
         targetPitch = NormalizePitch(e.x);
+
+        if (orbitPivot == null) orbitPivot = transform;
+
+        // If autoOrbit starts enabled, initialize from current camera pose
+        if (autoOrbit) SetupOrbitFromCurrentCamera();
     }
 
     void Update()
@@ -74,6 +95,9 @@ public class TabletopBoardControls : MonoBehaviour
 
         bool lPinch = IsPinching(L);
         bool rPinch = IsPinching(R);
+
+        // Any pinch = interaction; pause orbit and reset resume timer
+        if (lPinch || rPinch) lastInteractTime = Time.time;
 
         // ----- TWO HAND: ZOOM -----
         if (lPinch && rPinch)
@@ -138,7 +162,7 @@ public class TabletopBoardControls : MonoBehaviour
 
     void LateUpdate()
     {
-        // Smooth rotation
+        // Smooth rotation (board)
         Quaternion desiredRot = Quaternion.Euler(targetPitch, targetYaw, 0f);
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
@@ -146,13 +170,76 @@ public class TabletopBoardControls : MonoBehaviour
             1f - Mathf.Exp(-rotationSmooth * Time.deltaTime)
         );
 
-        // Smooth zoom
+        // Smooth zoom (board)
         transform.localScale = Vector3.Lerp(
             transform.localScale,
             targetScale,
             1f - Mathf.Exp(-zoomSmooth * Time.deltaTime)
         );
+
+        // Auto-orbit camera (exhibition)
+        if (autoOrbit && cam != null)
+        {
+            bool canOrbit = (Time.time - lastInteractTime) >= resumeAfterSeconds;
+            if (canOrbit) ApplyAutoOrbit();
+        }
     }
+
+    // --------- EXHIBITION HELPERS ---------
+
+    public void SetAutoOrbit(bool enabled)
+    {
+        autoOrbit = enabled;
+        if (autoOrbit)
+        {
+            if (orbitPivot == null) orbitPivot = transform;
+            SetupOrbitFromCurrentCamera();
+            lastInteractTime = Time.time; // optional: give a tiny delay before it starts moving
+        }
+    }
+
+    private void SetupOrbitFromCurrentCamera()
+    {
+        if (cam == null) return;
+        if (orbitPivot == null) orbitPivot = transform;
+
+        Vector3 pivotPos = orbitPivot.position;
+        Vector3 rel = cam.position - pivotPos;
+
+        // If orbitDistance wasn't set, use current distance
+        if (orbitDistance <= 0.0001f) orbitDistance = rel.magnitude;
+
+        // Initialize yaw from current camera position around pivot (ignore Y)
+        Vector3 flat = new Vector3(rel.x, 0f, rel.z);
+        if (flat.sqrMagnitude > 0.000001f)
+        {
+            orbitYaw = Mathf.Atan2(flat.x, flat.z) * Mathf.Rad2Deg;
+        }
+    }
+
+    private void ApplyAutoOrbit()
+    {
+        if (orbitPivot == null) orbitPivot = transform;
+
+        orbitYaw += orbitDegreesPerSecond * Time.deltaTime;
+
+        Vector3 pivotPos = orbitPivot.position;
+        Vector3 lookAt = pivotPos + Vector3.up * orbitLookAtHeight;
+
+        // Build an orbit position from yaw + pitch + distance
+        Quaternion orbitRot = Quaternion.Euler(orbitPitch, orbitYaw, 0f);
+        Vector3 offset = orbitRot * (Vector3.back * orbitDistance);
+        Vector3 desiredPos = pivotPos + offset;
+
+        float t = 1f - Mathf.Exp(-orbitSmooth * Time.deltaTime);
+
+        cam.position = Vector3.Lerp(cam.position, desiredPos, t);
+
+        Quaternion desiredRot = Quaternion.LookRotation((lookAt - cam.position).normalized, Vector3.up);
+        cam.rotation = Quaternion.Slerp(cam.rotation, desiredRot, t);
+    }
+
+    // --------- EXISTING PUBLIC API ---------
 
     public void ResetToHome()
     {
@@ -168,6 +255,9 @@ public class TabletopBoardControls : MonoBehaviour
 
         onePinch = false;
         twoPinch = false;
+
+        // Re-sync orbit from the current camera pose if needed
+        if (autoOrbit) SetupOrbitFromCurrentCamera();
     }
 
     private bool IsPinching(Hand h)
